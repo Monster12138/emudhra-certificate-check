@@ -24,20 +24,24 @@
       </div>
     </header>
     <h1 data-i18n="title">你的浏览器，<br>还接受问题证书吗？</h1>
-    <p class="lead" data-i18n="lead">向使用受损中间 CA 证书链的测试站发起请求，观察当前浏览器的连接行为。覆盖 6 个 TLS 中间 CA，以及 emSign / AAA 两类签名路径。</p>
+    <p class="lead" data-i18n="lead">检查当前浏览器对相关测试证书链的连接行为。</p>
     <section>
-      <div class="notice"><strong data-i18n="scopeTitle">检测范围：当前浏览器与当前网络。</strong><span data-i18n="scopeBody">打开页面后会自动向 12 个测试地址发起检测请求。网页无法读取系统吊销库，也无法检测 curl、Rust、Go 或其他应用。连接失败也不能证明证书已被吊销：CT 校验、断网、DNS、代理和浏览器策略都可能阻止请求。</span></div>
-      <p class="meta" data-i18n="privacy">检测会向 emudhra.we-have-a-problem.com 的 12 个测试子域发送无凭据请求。第三方可见你的出口 IP 和请求元数据，并可能统计成功连接。本页不保存检测记录，不加载统计脚本。</p>
+      <div class="notice"><strong data-i18n="scopeTitle">仅反映当前浏览器与网络。</strong><span data-i18n="scopeBody">本页不能读取系统吊销库，也不能检测 curl、Rust、Go 等应用。连接失败不等于证书已吊销。</span></div>
+      <p class="meta" data-i18n="privacy">请求会访问外部测试服务，对方可见你的出口 IP 和请求元数据。本页不保存检测记录。</p>
       <button id="start" type="button" data-i18n="retry">重新检测 12 条证书链</button>
       <div id="summary" role="status" aria-live="polite" data-i18n="starting">正在开始检测…</div>
       <p id="context" class="meta" data-i18n="contextIdle">无需安装软件，也不会修改证书或信任设置。</p>
       <div class="table"><table><thead><tr><th data-i18n="caHeader">中间 CA</th><th data-i18n="pathHeader">签名路径</th><th data-i18n="resultHeader">检测结果</th></tr></thead><tbody id="results"></tbody></table></div>
     </section>
     <section>
-      <h2 data-i18n="interpretTitle">如何理解结果</h2>
-      <details open><summary data-i18n="connectedTitle">连接成功：需要排查</summary><p data-i18n="connectedBody">说明当前连接路径允许取得该测试站的响应，应更新浏览器并检查 HTTPS 代理或证书校验设置。若经过企业 TLS 代理、VPN 或安全软件，响应可能由代理验证或替换，不能据此直接认定浏览器信任了原始受损证书。</p></details>
-      <details><summary data-i18n="failedTitle">连接失败或超时：无法单独确认原因</summary><p data-i18n="failedBody">网页 JavaScript 通常无法区分证书吊销、CT 拒绝、CORS、DNS 和网络错误。因此本页不会将失败显示为“安全”或“已吊销”。可直接打开测试地址，查看浏览器提供的具体证书错误；不要绕过警告。</p></details>
-      <details><summary data-i18n="developerTitle">开发者还需要做什么</summary><p data-i18n="developerBody">浏览器的检测结果不能代替程序自身的验证。rustls 项目请检查 rustls-webpki 修复版本（0.103.16，或 0.104.0-alpha.8 及后续适用版本），并更新使用中的 webpki-roots / webpki-root-certs 至 1.0.10 或更新版本。更新后重新构建并发布。</p></details>
+      <h2 data-i18n="interpretTitle">结果说明</h2>
+      <details open><summary data-i18n="connectedTitle">连接成功：建议排查</summary><p data-i18n="connectedBody">连接成功只表示收到测试站响应。代理、VPN 或安全软件可能影响结果，不能据此认定浏览器信任了原始证书。</p></details>
+      <details><summary data-i18n="failedTitle">连接失败：原因不确定</summary><p data-i18n="failedBody">可能由证书校验、CT、CORS、DNS 或网络问题导致。请查看浏览器证书错误，不要绕过警告。</p></details>
+      <details><summary data-i18n="developerTitle">Rust 开发者</summary><p data-i18n="developerBody">检查 rustls-webpki 是否已更新至修复版本，并将 webpki-roots / webpki-root-certs 更新至 1.0.10 或更新版本；之后重新构建发布。</p></details>
+    </section>
+    <section>
+      <h2 data-i18n="methodTitle">检测原理</h2>
+      <p data-i18n="methodBody">页面打开时会从当前浏览器连接 12 个公开测试地址，覆盖 6 个中间 CA 和两种签名路径。请求不携带凭据；测试服务可看到出口 IP 和请求元数据。本页不保存结果。连接成功表示收到响应；连接失败无法区分证书吊销、CT、CORS 或网络等原因，因此结果仅供排查，不能证明系统安全或证书状态。</p>
     </section>
     <footer><span data-i18n="sourcesLabel">依据：</span><a href="https://emudhra.we-have-a-problem.com/" target="_blank" rel="noopener noreferrer" data-i18n="incidentLink">事件说明与测试端点</a> · <a href="https://rustsec.org/advisories/RUSTSEC-2026-0382.html" target="_blank" rel="noopener noreferrer">RustSec Advisory</a><br><span data-i18n="footer">本工具仅测试 TLS 路径，不检测另外两个代码签名 CA。结果是一次连接观察，不是系统安全证明。</span></footer>
   </main>
