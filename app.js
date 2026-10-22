@@ -12,15 +12,21 @@ const messages = {
     interpretTitle: '结果说明', connectedTitle: '连接成功：建议排查',
     connectedBody: '连接成功只表示收到测试站响应。代理、VPN 或安全软件可能影响结果，不能据此认定浏览器信任了原始证书。',
     failedTitle: '连接失败：原因不确定',
-    failedBody: '可能由证书校验、CT、CORS、DNS 或网络问题导致。请查看浏览器证书错误，不要绕过警告。',
+    failedBody: '失败原因无法由网页自动确定。打开对应测试地址，填入浏览器的明确证书错误码，可手动确认并标记通过；不要绕过警告。',
     developerTitle: 'Rust 开发者',
     developerBody: '更新 rustls-webpki 至 0.103.16（或适用的 0.104.0-alpha.8+），并将 webpki-roots / webpki-root-certs 更新至 1.0.10+，然后重新构建发布。',
     methodTitle: '检测原理',
-    methodBody: '页面打开时会从当前浏览器连接 12 个公开测试地址，覆盖 6 个中间 CA 和两种签名路径。请求不携带凭据；测试服务可看到出口 IP 和请求元数据。本页不保存结果。连接成功表示收到响应；连接失败无法区分证书吊销、CT、CORS 或网络等原因，因此结果仅供排查，不能证明系统安全或证书状态。',
+    methodBody: '页面连接 12 个公开测试地址，覆盖 6 个中间 CA 和两种签名路径。先读取跨域响应，失败后尝试无需 CORS 响应头的请求；超时、DNS、网络或浏览器策略失败仍无法自动区分。只有根据用户从对应测试地址复制的吊销或不受信任错误码，才标记“检测通过 · 手动确认”。信任拒绝不等于吊销，也不能证明因本次事件而封禁。代理可能改变证书链。请求不携带凭据，本页不保存结果。',
     sourcesLabel: '依据：', incidentLink: '事件说明与测试端点',
     footer: '结果仅供排查，不构成系统安全证明。',
     emsign: 'emSign 签名链', aaa: 'AAA 交叉签名', notTested: '未检测', waiting: '等待中', connecting: '连接中…',
-    connected: status => `连接成功 · HTTP ${status} · 需排查`, timeout: '连接超时 · 原因待确认', failed: '未建立连接 · 原因待确认',
+    connected: status => status ? `连接成功 · HTTP ${status} · 需排查` : '收到响应 · 需排查', timeout: '连接超时 · 原因待确认', failed: '未建立连接 · 原因待确认',
+    confirmTitle: '确认是否因证书被拒绝',
+    confirmInfo: '打开本行测试地址，复制浏览器显示的确切错误码。只接受吊销或不受信任错误；Safari 的笼统安全警告不足以确认。',
+    errorLabel: '浏览器证书错误码', confirmButton: '按错误码确认',
+    unsupportedCode: '此错误码不足以确认吊销或信任拒绝。支持：ERR_CERT_REVOKED、SEC_ERROR_REVOKED_CERTIFICATE、ERR_CERT_AUTHORITY_INVALID、SEC_ERROR_UNKNOWN_ISSUER。',
+    revokedConfirmed: '检测通过 · 手动确认吊销拒绝', trustConfirmed: '检测通过 · 手动确认信任拒绝',
+    confirmedSummary: (passed, connected, unknown) => `${passed} 条手动确认通过 · ${connected} 条可连接 · ${unknown} 条待确认`,
     doneConnected: n => `发现 ${n} 条可连接路径，请排查`, doneNone: '12 条路径均未建立连接；不能据此确认已吊销',
     completedAt: date => `完成时间：${date}。结果仅适用于本次浏览器与网络环境。`
   },
@@ -35,15 +41,21 @@ const messages = {
     interpretTitle: 'Results', connectedTitle: 'Connected: investigate',
     connectedBody: 'A successful connection only means a response was received. A proxy, VPN, or security software may affect the result; it does not prove the browser trusted the original certificate.',
     failedTitle: 'Failed: cause unknown',
-    failedBody: 'The cause may be certificate validation, CT, CORS, DNS, or a network issue. Check the browser’s certificate error and do not bypass warnings.',
+    failedBody: 'A webpage cannot automatically identify the failure. Open the test URL and enter an explicit browser certificate error code to mark a manually confirmed pass. Do not bypass warnings.',
     developerTitle: 'For Rust developers',
     developerBody: 'Update rustls-webpki to 0.103.16 (or 0.104.0-alpha.8+ where applicable) and webpki-roots / webpki-root-certs to 1.0.10+, then rebuild and redeploy.',
     methodTitle: 'How the test works',
-    methodBody: 'When the page opens, the current browser connects to 12 public test endpoints covering six intermediate CAs and two signing paths. Requests include no credentials; the test service can see your public IP and request metadata. This page stores no results. A successful connection means a response was received. A failure cannot distinguish revocation from CT, CORS, or network errors, so results are for troubleshooting only and cannot prove system security or certificate status.',
+    methodBody: 'The page requests 12 public endpoints covering six intermediate CAs and two signing paths. If reading a cross-origin response fails, it retries without requiring CORS response headers. Timeouts, DNS, network errors and browser policies remain indistinguishable. A pass is marked only from a revocation or untrusted-issuer code the user copies from that test URL, and is labeled manually confirmed. Trust rejection is not proof of revocation or incident-specific blocking. Proxies may change the certificate chain. Requests include no credentials and this page stores no results.',
     sourcesLabel: 'Sources: ', incidentLink: 'Incident details and test endpoints',
     footer: 'Results are for troubleshooting only and do not prove system security.',
     emsign: 'emSign chain', aaa: 'AAA cross-signed', notTested: 'Not checked', waiting: 'Waiting', connecting: 'Connecting…',
-    connected: status => `Connected · HTTP ${status} · investigate`, timeout: 'Timed out · cause unknown', failed: 'Could not connect · cause unknown',
+    connected: status => status ? `Connected · HTTP ${status} · investigate` : 'Response received · investigate', timeout: 'Timed out · cause unknown', failed: 'Could not connect · cause unknown',
+    confirmTitle: 'Confirm certificate rejection',
+    confirmInfo: 'Open this row’s test URL and copy the exact browser error code. Only revocation or untrusted-issuer errors are accepted; a generic Safari security warning is insufficient.',
+    errorLabel: 'Browser certificate error code', confirmButton: 'Confirm error code',
+    unsupportedCode: 'This code does not confirm revocation or trust rejection. Supported: ERR_CERT_REVOKED, SEC_ERROR_REVOKED_CERTIFICATE, ERR_CERT_AUTHORITY_INVALID, SEC_ERROR_UNKNOWN_ISSUER.',
+    revokedConfirmed: 'Passed · manually confirmed revocation rejection', trustConfirmed: 'Passed · manually confirmed trust rejection',
+    confirmedSummary: (passed, connected, unknown) => `${passed} manually confirmed · ${connected} connected · ${unknown} unconfirmed`,
     doneConnected: n => `${n} path(s) connected; investigate these results`, doneNone: 'No connection on all 12 paths; this does not confirm revocation',
     completedAt: date => `Completed ${date}. Results apply only to this browser and network.`,
   }
@@ -68,6 +80,7 @@ let currentLanguage = getInitialLanguage();
 let isRunning = false;
 let hasCompleted = false;
 const cells = [];
+const confirmations = [];
 
 function getInitialLanguage() {
   try {
@@ -91,10 +104,10 @@ function renderLanguage() {
   });
   button.disabled = isRunning;
   button.textContent = hasCompleted ? t('retry') : t('starting');
-  cells.forEach((cell, index) => {
-    const state = cell.dataset.state || 'notTested';
-    const status = cell.dataset.status;
-    cell.textContent = status ? t(state, Number(status)) : t(state);
+  cells.forEach(renderResult);
+  confirmations.forEach(control => {
+    control.input.setAttribute('aria-label', t('errorLabel'));
+    if (control.feedback.textContent) control.feedback.textContent = t('unsupportedCode');
   });
   summary.textContent = getSummaryText();
   context.textContent = getContextText();
@@ -104,6 +117,8 @@ function getSummaryText() {
   if (isRunning) return t('progress', Number(summary.dataset.done || 0));
   if (!hasCompleted) return t('starting');
   const connected = Number(summary.dataset.connected || 0);
+  const passed = cells.filter(cell => cell.dataset.errorCode).length;
+  if (passed) return t('confirmedSummary', passed, connected, endpoints.length - connected - passed);
   return connected ? t('doneConnected', connected) : t('doneNone');
 }
 
@@ -124,11 +139,55 @@ for (const endpoint of endpoints) {
   link.rel = 'noopener noreferrer';
   link.dataset.cross = endpoint.cross;
   path.append(link);
-  const result = document.createElement('td');
+  const resultCell = document.createElement('td');
+  const result = document.createElement('span');
   result.dataset.state = 'notTested';
-  row.append(name, path, result);
+  resultCell.append(result);
+  const details = document.createElement('details');
+  details.className = 'confirm';
+  details.hidden = true;
+  const title = document.createElement('summary');
+  title.dataset.i18n = 'confirmTitle';
+  const info = document.createElement('p');
+  info.dataset.i18n = 'confirmInfo';
+  const form = document.createElement('form');
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.required = true;
+  input.maxLength = 100;
+  input.spellcheck = false;
+  input.autocomplete = 'off';
+  input.placeholder = 'ERR_CERT_REVOKED';
+  const submit = document.createElement('button');
+  submit.type = 'submit';
+  submit.dataset.i18n = 'confirmButton';
+  const feedback = document.createElement('p');
+  feedback.className = 'unknown';
+  feedback.setAttribute('role', 'status');
+  form.append(input, submit);
+  details.append(title, info, form, feedback);
+  resultCell.append(details);
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    if (isRunning || !['failed', 'timeout', 'revokedConfirmed', 'trustConfirmed'].includes(result.dataset.state)) return;
+    const evidence = classifyCertificateError(input.value);
+    if (!evidence) {
+      result.dataset.state = result.dataset.transportState;
+      delete result.dataset.errorCode;
+      renderLanguage();
+      feedback.textContent = t('unsupportedCode');
+      return;
+    }
+    result.dataset.state = evidence.state;
+    result.dataset.errorCode = evidence.code;
+    feedback.textContent = '';
+    details.open = false;
+    renderLanguage();
+  });
+  row.append(name, path, resultCell);
   tbody.append(row);
   cells.push(result);
+  confirmations.push({details, input, feedback});
 }
 
 function renderEndpointLabels() {
@@ -137,19 +196,43 @@ function renderEndpointLabels() {
   });
 }
 
+// A transport failure alone must never be classified as a certificate rejection.
+function classifyCertificateError(value) {
+  const code = value.trim().toUpperCase().replace(/^NET::/, '');
+  if (['ERR_CERT_REVOKED', 'SEC_ERROR_REVOKED_CERTIFICATE'].includes(code)) {
+    return {state: 'revokedConfirmed', code};
+  }
+  if (['ERR_CERT_AUTHORITY_INVALID', 'SEC_ERROR_UNKNOWN_ISSUER'].includes(code)) {
+    return {state: 'trustConfirmed', code};
+  }
+  return null;
+}
+
+function renderResult(cell) {
+  const state = cell.dataset.state || 'notTested';
+  cell.textContent = t(state, cell.dataset.status ? Number(cell.dataset.status) : undefined);
+  if (cell.dataset.errorCode) cell.textContent += ` · ${cell.dataset.errorCode}`;
+  cell.className = cell.dataset.errorCode ? 'pass' : state === 'connected' ? 'risk' : ['failed', 'timeout'].includes(state) ? 'unknown' : '';
+}
+
 async function probe(endpoint) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 10000);
-  try {
-    const response = await fetch(`${endpoint.url}?check=${Date.now()}`, {
-      mode: 'cors', credentials: 'omit', cache: 'no-store', redirect: 'error',
-      referrerPolicy: 'no-referrer', signal: controller.signal
-    });
-    return {state: 'connected', status: response.status};
-  } catch (error) {
-    return {state: error.name === 'AbortError' ? 'timeout' : 'failed'};
-  } finally {
-    clearTimeout(timer);
+  // CORS mode preserves HTTP status when supported. The fallback can establish
+  // reachability without exposing the response, but cannot diagnose TLS errors.
+  for (const mode of ['cors', 'no-cors']) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    try {
+      const response = await fetch(`${endpoint.url}?check=${Date.now()}`, {
+        mode, credentials: 'omit', cache: 'no-store', redirect: 'error',
+        referrerPolicy: 'no-referrer', signal: controller.signal
+      });
+      return {state: 'connected', status: response.type === 'opaque' ? null : response.status};
+    } catch (error) {
+      if (error.name === 'AbortError') return {state: 'timeout'};
+      if (mode === 'no-cors') return {state: 'failed'};
+    } finally {
+      clearTimeout(timer);
+    }
   }
 }
 
@@ -162,6 +245,13 @@ async function runChecks() {
   cells.forEach(cell => {
     cell.dataset.state = 'waiting';
     delete cell.dataset.status;
+    delete cell.dataset.errorCode;
+  });
+  confirmations.forEach(control => {
+    control.details.hidden = true;
+    control.details.open = false;
+    control.input.value = '';
+    control.feedback.textContent = '';
   });
   renderLanguage();
 
@@ -176,16 +266,16 @@ async function runChecks() {
       cell.textContent = t('connecting');
       const result = await probe(endpoints[index]);
       done++;
+      cell.dataset.transportState = result.state;
       if (result.state === 'connected') {
         connected++;
         cell.dataset.state = 'connected';
-        cell.dataset.status = String(result.status);
+        if (result.status) cell.dataset.status = String(result.status);
       } else {
         cell.dataset.state = result.state;
         delete cell.dataset.status;
       }
-      cell.textContent = result.state === 'connected' ? t('connected', result.status) : t(result.state);
-      cell.className = result.state === 'connected' ? 'risk' : 'unknown';
+      renderResult(cell);
       summary.dataset.done = String(done);
       summary.dataset.connected = String(connected);
       summary.textContent = t('progress', done);
@@ -195,6 +285,9 @@ async function runChecks() {
   await Promise.all([worker(), worker(), worker()]);
   isRunning = false;
   hasCompleted = true;
+  confirmations.forEach((control, index) => {
+    control.details.hidden = !['failed', 'timeout'].includes(cells[index].dataset.state);
+  });
   context.dataset.completedAt = new Date().toLocaleString(currentLanguage);
   renderLanguage();
 }

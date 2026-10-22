@@ -8,6 +8,7 @@
   <title>HTTPS 证书信任检测</title>
   <style>
     :root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#193b37;background:#f1f5f1}*{box-sizing:border-box}body{margin:0}main{max-width:1050px;margin:auto;padding:48px 24px}header{display:flex;justify-content:space-between;align-items:center;gap:16px;border-bottom:1px solid #c9d6cd;padding-bottom:20px;font-size:14px}.header-tools{display:flex;align-items:center;gap:12px}.tag{border:1px solid #adc2b7;border-radius:30px;padding:6px 12px;white-space:nowrap}select{font:inherit;color:inherit;background:#fff;border:1px solid #adc2b7;border-radius:8px;padding:7px 10px}h1{font-size:clamp(32px,5vw,56px);letter-spacing:-2px;line-height:1.2;margin:42px 0 20px}p{line-height:1.8}section{background:#fff;border:1px solid #d3dfd5;border-radius:18px;padding:26px;margin:24px 0}.lead{max-width:720px;color:#4b635b}.notice{background:#e5ede4;padding:18px;border-radius:12px;line-height:1.7}.notice strong{display:block;margin-bottom:6px}button{background:#194e42;color:white;border:0;border-radius:9px;padding:14px 24px;font:inherit;cursor:pointer;margin-top:20px}button:disabled{opacity:.6;cursor:wait}button:focus-visible,a:focus-visible,select:focus-visible{outline:3px solid #b67812;outline-offset:4px}#summary{font-size:21px;font-weight:650;margin:20px 0 8px}.meta{font-size:13px;color:#56685e}.table{overflow:auto}table{width:100%;border-collapse:collapse;font-size:14px;white-space:nowrap}td,th{text-align:left;padding:15px 8px;border-bottom:1px solid #e6ebe6}th{color:#596d60;font-weight:500}.risk{color:#b32e25;font-weight:700}.unknown{color:#86601d}a{color:#195b49}details{margin:18px 0;line-height:1.8}summary{cursor:pointer;font-weight:600}footer{font-size:13px;line-height:1.8;color:#56685e}@media(max-width:550px){main{padding:24px 16px}section{padding:18px}header{font-size:12px}.header-tools{gap:6px}h1{letter-spacing:-1px}}
+  .pass{color:#16703b;font-weight:700}.confirm{white-space:normal;min-width:240px;max-width:430px;font-size:13px;margin:10px 0 0}.confirm p{line-height:1.6}.confirm input{font:inherit;padding:9px;width:100%;border:1px solid #adc2b7;border-radius:6px}.confirm button{font-size:13px;padding:9px 12px;margin-top:8px}[hidden]{display:none!important}
   </style>
 </head>
 <body>
@@ -36,12 +37,12 @@
     <section>
       <h2 data-i18n="interpretTitle">结果说明</h2>
       <details open><summary data-i18n="connectedTitle">连接成功：建议排查</summary><p data-i18n="connectedBody">连接成功只表示收到测试站响应。代理、VPN 或安全软件可能影响结果，不能据此认定浏览器信任了原始证书。</p></details>
-      <details><summary data-i18n="failedTitle">连接失败：原因不确定</summary><p data-i18n="failedBody">可能由证书校验、CT、CORS、DNS 或网络问题导致。请查看浏览器证书错误，不要绕过警告。</p></details>
+      <details><summary data-i18n="failedTitle">连接失败：原因不确定</summary><p data-i18n="failedBody">失败原因无法由网页自动确定。打开对应测试地址，填入浏览器的明确证书错误码，可手动确认并标记通过；不要绕过警告。</p></details>
       <details><summary data-i18n="developerTitle">Rust 开发者</summary><p data-i18n="developerBody">检查 rustls-webpki 是否已更新至修复版本，并将 webpki-roots / webpki-root-certs 更新至 1.0.10 或更新版本；之后重新构建发布。</p></details>
     </section>
     <section>
       <h2 data-i18n="methodTitle">检测原理</h2>
-      <p data-i18n="methodBody">页面打开时会从当前浏览器连接 12 个公开测试地址，覆盖 6 个中间 CA 和两种签名路径。请求不携带凭据；测试服务可看到出口 IP 和请求元数据。本页不保存结果。连接成功表示收到响应；连接失败无法区分证书吊销、CT、CORS 或网络等原因，因此结果仅供排查，不能证明系统安全或证书状态。</p>
+      <p data-i18n="methodBody">页面连接 12 个公开测试地址，覆盖 6 个中间 CA 和两种签名路径。先读取跨域响应，失败后尝试无需 CORS 响应头的请求；超时、DNS、网络或浏览器策略失败仍无法自动区分。只有根据用户从对应测试地址复制的吊销或不受信任错误码，才标记“检测通过 · 手动确认”。信任拒绝不等于吊销，也不能证明因本次事件而封禁。代理可能改变证书链。请求不携带凭据，本页不保存结果。</p>
     </section>
     <footer><span data-i18n="sourcesLabel">依据：</span><a href="https://emudhra.we-have-a-problem.com/" target="_blank" rel="noopener noreferrer" data-i18n="incidentLink">事件说明与测试端点</a> · <a href="https://rustsec.org/advisories/RUSTSEC-2026-0382.html" target="_blank" rel="noopener noreferrer">RustSec Advisory</a><br><span data-i18n="footer">本工具仅测试 TLS 路径，不检测另外两个代码签名 CA。结果是一次连接观察，不是系统安全证明。</span></footer>
   </main>
